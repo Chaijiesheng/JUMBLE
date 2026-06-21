@@ -1,6 +1,10 @@
 package asia.fourtitude.interviewq.jumble.controller;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -9,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,6 +35,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
+@CrossOrigin
 @Tag(name = "Game API", description = "Guessing words game REST API endpoint.")
 @RequestMapping(path = "/api/game")
 public class GameApiController {
@@ -75,19 +81,26 @@ public class GameApiController {
                                                             "}") })) })
     @GetMapping(value = "/new", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GameGuessOutput> newGame() {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        GameGuessOutput output = new GameGuessOutput();
-
         GameState gameState = this.jumbleEngine.createGameState(6, 3);
 
-        /*
-         * TODO:
-         * a) Store the game state to the repository, with unique game board ID
-         * b) Return the game board/state (GameGuessOutput) to caller
-         */
+        String id = UUID.randomUUID().toString();
+        Date now = new Date();
+        GameGuessModel gameModel = new GameGuessModel();
+        gameModel.setId(id);
+        gameModel.setCreatedAt(now);
+        gameModel.setModifiedAt(now);
+        gameModel.setGameState(gameState);
+        gameBoards.put(id, gameModel);
+
+        int totalWords = gameState.getSubWords().size();
+        GameGuessOutput output = new GameGuessOutput();
+        output.setResult("Created new game.");
+        output.setId(id);
+        output.setOriginalWord(gameState.getOriginal());
+        output.setScrambleWord(gameState.getScramble());
+        output.setTotalWords(totalWords);
+        output.setRemainingWords(totalWords);
+        output.setGuessedWords(new ArrayList<>());
 
         return new ResponseEntity<>(output, HttpStatus.OK);
     }
@@ -207,20 +220,55 @@ public class GameApiController {
                             "  \"word\": \"answer\"\n" +
                             "}")
             @RequestBody GameGuessInput input) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
         GameGuessOutput output = new GameGuessOutput();
 
-        /*
-         * TODO:
-         * a) Validate the input (GameGuessInput)
-         * b) Check records exists in repository (search by input `id`)
-         * c) From the input guessing `word`, implement the game logic
-         * d) Update the game board (and game state) in repository
-         * e) Return the updated game board/state (GameGuessOutput) to caller
-         */
+        String id = input == null ? null : input.getId();
+        if (id == null) {
+            output.setResult("Invalid Game ID.");
+            return new ResponseEntity<>(output, HttpStatus.NOT_FOUND);
+        }
+        try {
+            UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            output.setResult("Invalid Game ID.");
+            return new ResponseEntity<>(output, HttpStatus.NOT_FOUND);
+        }
+
+        GameGuessModel gameModel = gameBoards.get(id);
+        if (gameModel == null) {
+            output.setResult("Game board/state not found.");
+            return new ResponseEntity<>(output, HttpStatus.NOT_FOUND);
+        }
+
+        GameState gameState = gameModel.getGameState();
+        String word = input.getWord();
+        String normalizedWord = word != null ? word.trim().toLowerCase() : null;
+
+        boolean guessed = gameState.updateGuessWord(normalizedWord);
+
+        List<String> guessedWords = gameState.getGuessedWords();
+        int totalWords = gameState.getSubWords().size();
+        int remainingWords = totalWords - guessedWords.size();
+
+        String result;
+        if (guessed && remainingWords == 0) {
+            result = "All words guessed.";
+        } else if (guessed) {
+            result = "Guessed correctly.";
+        } else {
+            result = "Guessed incorrectly.";
+        }
+
+        gameModel.setModifiedAt(new Date());
+
+        output.setResult(result);
+        output.setId(id);
+        output.setOriginalWord(gameState.getOriginal());
+        output.setScrambleWord(gameState.getScramble());
+        output.setGuessWord(word);
+        output.setTotalWords(totalWords);
+        output.setRemainingWords(remainingWords);
+        output.setGuessedWords(guessedWords);
 
         return new ResponseEntity<>(output, HttpStatus.OK);
     }

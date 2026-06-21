@@ -2,8 +2,11 @@ package asia.fourtitude.interviewq.jumble.model;
 
 import java.util.Collection;
 
+import javax.validation.constraints.NotBlank;
+
 public class PrefixForm {
 
+    @NotBlank
     private String prefix;
 
     private Collection<String> words;

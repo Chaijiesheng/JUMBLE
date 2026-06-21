@@ -1,12 +1,23 @@
 package asia.fourtitude.interviewq.jumble.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,175 +36,202 @@ class GameApiControllerTest {
     @Autowired
     JumbleEngine jumbleEngine;
 
-    /*
-     * NOTE: Refer to "RootControllerTest.java", "GameWebControllerTest.java"
-     * as reference. Search internet for resource/tutorial/help in implementing
-     * the unit tests.
-     *
-     * Refer to "http://localhost:8080/swagger-ui/index.html" for REST API
-     * documentation and perform testing.
-     *
-     * Refer to Postman collection ("interviewq-jumble.postman_collection.json")
-     * for REST API documentation and perform testing.
-     */
+    private Map<String, Object> createNewGame() throws Exception {
+        MvcResult result = this.mvc.perform(get("/api/game/new"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return OM.readValue(result.getResponse().getContentAsString(), Map.class);
+    }
 
     @Test
     void whenCreateNewGame_thenSuccess() throws Exception {
-        /*
-         * Doing HTTP GET "/api/game/new"
-         *
-         * Input: None
-         *
-         * Expect: Assert these
-         * a) HTTP status == 200
-         * b) `result` equals "Created new game."
-         * c) `id` is not null
-         * d) `originalWord` is not null
-         * e) `scrambleWord` is not null
-         * f) `totalWords` > 0
-         * g) `remainingWords` > 0 and same as `totalWords`
-         * h) `guessedWords` is empty list
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> resp = createNewGame();
+
+        assertEquals("Created new game.", resp.get("result"));
+        assertNotNull(resp.get("id"));
+        assertNotNull(resp.get("original_word"));
+        assertNotNull(resp.get("scramble_word"));
+        int totalWords = (int) resp.get("total_words");
+        int remainingWords = (int) resp.get("remaining_words");
+        assertTrue(totalWords > 0);
+        assertTrue(remainingWords > 0);
+        assertEquals(totalWords, remainingWords);
+        List<?> guessedWords = (List<?>) resp.get("guessed_words");
+        assertNotNull(guessedWords);
+        assertTrue(guessedWords.isEmpty());
     }
 
     @Test
     void givenMissingId_whenPlayGame_thenInvalidId() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Input: JSON request body
-         * a) `id` is null or missing
-         * b) `word` is null/anything or missing
-         *
-         * Expect: Assert these
-         * a) HTTP status == 404
-         * b) `result` equals "Invalid Game ID."
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> requestBody = new HashMap<>();
+        // no id field
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isNotFound())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+        assertEquals("Invalid Game ID.", resp.get("result"));
     }
 
     @Test
     void givenMissingRecord_whenPlayGame_thenRecordNotFound() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Input: JSON request body
-         * a) `id` is some valid ID (but not exists in game system)
-         * b) `word` is null/anything or missing
-         *
-         * Expect: Assert these
-         * a) HTTP status == 404
-         * b) `result` equals "Game board/state not found."
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("id", UUID.randomUUID().toString());
+        // no word field
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isNotFound())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+        assertEquals("Game board/state not found.", resp.get("result"));
     }
 
     @Test
     void givenCreateNewGame_whenSubmitNullWord_thenGuessedIncorrectly() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Given:
-         * a) has valid game ID from previously created game
-         *
-         * Input: JSON request body
-         * a) `id` of previously created game
-         * b) `word` is null or missing
-         *
-         * Expect: Assert these
-         * a) HTTP status == 200
-         * b) `result` equals "Guessed incorrectly."
-         * c) `id` equals to `id` of this game
-         * d) `originalWord` is equals to `originalWord` of this game
-         * e) `scrambleWord` is not null
-         * f) `guessWord` is equals to `input.word`
-         * g) `totalWords` is equals to `totalWords` of this game
-         * h) `remainingWords` is equals to `remainingWords` of previous game state (no change)
-         * i) `guessedWords` is empty list (because this is first attempt)
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> newResp = createNewGame();
+        String gameId = (String) newResp.get("id");
+        String originalWord = (String) newResp.get("original_word");
+        int totalWords = (int) newResp.get("total_words");
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("id", gameId);
+        // no word field (null)
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+
+        assertEquals("Guessed incorrectly.", resp.get("result"));
+        assertEquals(gameId, resp.get("id"));
+        assertEquals(originalWord, resp.get("original_word"));
+        assertNotNull(resp.get("scramble_word"));
+        assertNull(resp.get("guess_word"));
+        assertEquals(totalWords, resp.get("total_words"));
+        assertEquals(totalWords, resp.get("remaining_words"));
+        List<?> guessedWords = (List<?>) resp.get("guessed_words");
+        assertNotNull(guessedWords);
+        assertTrue(guessedWords.isEmpty());
     }
 
     @Test
     void givenCreateNewGame_whenSubmitWrongWord_thenGuessedIncorrectly() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Given:
-         * a) has valid game ID from previously created game
-         *
-         * Input: JSON request body
-         * a) `id` of previously created game
-         * b) `word` is some value (that is not correct answer)
-         *
-         * Expect: Assert these
-         * a) HTTP status == 200
-         * b) `result` equals "Guessed incorrectly."
-         * c) `id` equals to `id` of this game
-         * d) `originalWord` is equals to `originalWord` of this game
-         * e) `scrambleWord` is not null
-         * f) `guessWord` equals to input `guessWord`
-         * g) `totalWords` is equals to `totalWords` of this game
-         * h) `remainingWords` is equals to `remainingWords` of previous game state (no change)
-         * i) `guessedWords` is empty list (because this is first attempt)
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> newResp = createNewGame();
+        String gameId = (String) newResp.get("id");
+        String originalWord = (String) newResp.get("original_word");
+        int totalWords = (int) newResp.get("total_words");
+
+        String wrongWord = "xxxxxxxxxx"; // 10 chars, can't be a sub-word of a 6-letter word
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("id", gameId);
+        requestBody.put("word", wrongWord);
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+
+        assertEquals("Guessed incorrectly.", resp.get("result"));
+        assertEquals(gameId, resp.get("id"));
+        assertEquals(originalWord, resp.get("original_word"));
+        assertNotNull(resp.get("scramble_word"));
+        assertEquals(wrongWord, resp.get("guess_word"));
+        assertEquals(totalWords, resp.get("total_words"));
+        assertEquals(totalWords, resp.get("remaining_words"));
+        List<?> guessedWords = (List<?>) resp.get("guessed_words");
+        assertNotNull(guessedWords);
+        assertTrue(guessedWords.isEmpty());
     }
 
     @Test
     void givenCreateNewGame_whenSubmitFirstCorrectWord_thenGuessedCorrectly() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Given:
-         * a) has valid game ID from previously created game
-         *
-         * Input: JSON request body
-         * a) `id` of previously created game
-         * b) `word` is of correct answer
-         *
-         * Expect: Assert these
-         * a) HTTP status == 200
-         * b) `result` equals "Guessed correctly."
-         * c) `id` equals to `id` of this game
-         * d) `originalWord` is equals to `originalWord` of this game
-         * e) `scrambleWord` is not null
-         * f) `guessWord` equals to input `guessWord`
-         * g) `totalWords` is equals to `totalWords` of this game
-         * h) `remainingWords` is equals to `remainingWords - 1` of previous game state (decrement by 1)
-         * i) `guessedWords` is not empty list
-         * j) `guessWords` contains input `guessWord`
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> newResp = createNewGame();
+        String gameId = (String) newResp.get("id");
+        String originalWord = (String) newResp.get("original_word");
+        int totalWords = (int) newResp.get("total_words");
+
+        Collection<String> subWords = jumbleEngine.generateSubWords(originalWord, 3);
+        assertTrue(subWords.size() >= 1, "must have at least 1 sub-word");
+        String correctWord = subWords.iterator().next();
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("id", gameId);
+        requestBody.put("word", correctWord);
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+
+        assertEquals("Guessed correctly.", resp.get("result"));
+        assertEquals(gameId, resp.get("id"));
+        assertEquals(originalWord, resp.get("original_word"));
+        assertNotNull(resp.get("scramble_word"));
+        assertEquals(correctWord, resp.get("guess_word"));
+        assertEquals(totalWords, resp.get("total_words"));
+        assertEquals(totalWords - 1, resp.get("remaining_words"));
+        List<?> guessedWords = (List<?>) resp.get("guessed_words");
+        assertNotNull(guessedWords);
+        assertFalse(guessedWords.isEmpty());
+        assertTrue(guessedWords.contains(correctWord));
     }
 
     @Test
     void givenCreateNewGame_whenSubmitAllCorrectWord_thenAllGuessed() throws Exception {
-        /*
-         * Doing HTTP POST "/api/game/guess"
-         *
-         * Given:
-         * a) has valid game ID from previously created game
-         * b) has submit all correct answers, except the last answer
-         *
-         * Input: JSON request body
-         * a) `id` of previously created game
-         * b) `word` is of the last correct answer
-         *
-         * Expect: Assert these
-         * a) HTTP status == 200
-         * b) `result` equals "All words guessed."
-         * c) `id` equals to `id` of this game
-         * d) `originalWord` is equals to `originalWord` of this game
-         * e) `scrambleWord` is not null
-         * f) `guessWord` equals to input `guessWord`
-         * g) `totalWords` is equals to `totalWords` of this game
-         * h) `remainingWords` is 0 (no more remaining, game ended)
-         * i) `guessedWords` is not empty list
-         * j) `guessWords` contains input `guessWord`
-         */
-        assertTrue(false, "to be implemented");
+        Map<String, Object> newResp = createNewGame();
+        String gameId = (String) newResp.get("id");
+        String originalWord = (String) newResp.get("original_word");
+        int totalWords = (int) newResp.get("total_words");
+
+        List<String> correctWords = new ArrayList<>(jumbleEngine.generateSubWords(originalWord, 3));
+        assertTrue(correctWords.size() >= 1, "must have at least 1 sub-word");
+
+        // Submit all words except last
+        for (int i = 0; i < correctWords.size() - 1; i++) {
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("id", gameId);
+            requestBody.put("word", correctWords.get(i));
+            this.mvc.perform(post("/api/game/guess")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(OM.writeValueAsString(requestBody)))
+                    .andExpect(status().isOk());
+        }
+
+        // Submit the last word
+        String lastWord = correctWords.get(correctWords.size() - 1);
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("id", gameId);
+        requestBody.put("word", lastWord);
+
+        MvcResult result = this.mvc.perform(post("/api/game/guess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OM.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<String, Object> resp = OM.readValue(result.getResponse().getContentAsString(), Map.class);
+
+        assertEquals("All words guessed.", resp.get("result"));
+        assertEquals(gameId, resp.get("id"));
+        assertEquals(originalWord, resp.get("original_word"));
+        assertNotNull(resp.get("scramble_word"));
+        assertEquals(lastWord, resp.get("guess_word"));
+        assertEquals(totalWords, resp.get("total_words"));
+        assertEquals(0, resp.get("remaining_words"));
+        List<?> guessedWords = (List<?>) resp.get("guessed_words");
+        assertNotNull(guessedWords);
+        assertFalse(guessedWords.isEmpty());
+        assertTrue(guessedWords.contains(lastWord));
     }
 
 }

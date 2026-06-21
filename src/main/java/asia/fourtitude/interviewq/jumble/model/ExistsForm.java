@@ -1,7 +1,10 @@
 package asia.fourtitude.interviewq.jumble.model;
 
+import javax.validation.constraints.NotBlank;
+
 public class ExistsForm {
 
+    @NotBlank
     private String word;
 
     private Boolean exists;

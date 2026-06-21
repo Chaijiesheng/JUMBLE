@@ -2,8 +2,11 @@ package asia.fourtitude.interviewq.jumble.model;
 
 import java.util.Collection;
 
+import javax.validation.constraints.NotBlank;
+
 public class SubWordsForm {
 
+    @NotBlank
     private String word;
 
     private Integer minLength;

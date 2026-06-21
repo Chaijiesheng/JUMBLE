@@ -5,6 +5,36 @@ import java.util.*;
 
 public class JumbleEngine {
 
+    private final Set<String> wordSet;
+    private final List<String> wordList;
+    private final Map<Integer, List<String>> wordsByLength;
+    private final Random random;
+
+    public JumbleEngine() {
+        this.wordSet = new HashSet<>();
+        this.wordList = new ArrayList<>();
+        this.wordsByLength = new HashMap<>();
+        this.random = new Random();
+        loadWords();
+    }
+
+    private void loadWords() {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("words.txt");
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String word = line.trim().toLowerCase();
+                if (!word.isEmpty()) {
+                    wordSet.add(word);
+                    wordList.add(word);
+                    wordsByLength.computeIfAbsent(word.length(), k -> new ArrayList<>()).add(word);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load words.txt", e);
+        }
+    }
+
     /**
      * From the input `word`, produces/generates a copy which has the same
      * letters, but in different ordering.
@@ -19,11 +49,22 @@ public class JumbleEngine {
      * @return  The scrambled output/letters.
      */
     public String scramble(String word) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        List<Character> chars = new ArrayList<>();
+        for (char c : word.toCharArray()) {
+            chars.add(c);
+        }
+        String result;
+        int attempts = 0;
+        do {
+            Collections.shuffle(chars, random);
+            StringBuilder sb = new StringBuilder(chars.size());
+            for (char c : chars) {
+                sb.append(c);
+            }
+            result = sb.toString();
+            attempts++;
+        } while (result.equals(word) && attempts < 1000);
+        return result;
     }
 
     /**
@@ -44,11 +85,16 @@ public class JumbleEngine {
      * @see https://www.google.com/search?q=palindrome+meaning
      */
     public Collection<String> retrievePalindromeWords() {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        List<String> palindromes = new ArrayList<>();
+        for (String word : wordList) {
+            if (word.length() > 1) {
+                String reversed = new StringBuilder(word).reverse().toString();
+                if (word.equals(reversed)) {
+                    palindromes.add(word);
+                }
+            }
+        }
+        return palindromes;
     }
 
     /**
@@ -65,11 +111,17 @@ public class JumbleEngine {
      *          Or null if none matching.
      */
     public String pickOneRandomWord(Integer length) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        if (length == null) {
+            if (wordList.isEmpty()) {
+                return null;
+            }
+            return wordList.get(random.nextInt(wordList.size()));
+        }
+        List<String> words = wordsByLength.get(length);
+        if (words == null || words.isEmpty()) {
+            return null;
+        }
+        return words.get(random.nextInt(words.size()));
     }
 
     /**
@@ -85,11 +137,10 @@ public class JumbleEngine {
      * @return  true if `word` exists in internal word list.
      */
     public boolean exists(String word) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        if (word == null || word.trim().isEmpty()) {
+            return false;
+        }
+        return wordSet.contains(word.trim().toLowerCase());
     }
 
     /**
@@ -109,11 +160,23 @@ public class JumbleEngine {
      * @return  The list of words matching the prefix.
      */
     public Collection<String> wordsMatchingPrefix(String prefix) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        if (prefix == null || prefix.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String trimmed = prefix.trim();
+        for (char c : trimmed.toCharArray()) {
+            if (!Character.isLetter(c)) {
+                return Collections.emptyList();
+            }
+        }
+        String lowerPrefix = trimmed.toLowerCase();
+        List<String> result = new ArrayList<>();
+        for (String word : wordList) {
+            if (word.startsWith(lowerPrefix)) {
+                result.add(word);
+            }
+        }
+        return result;
     }
 
     /**
@@ -141,11 +204,31 @@ public class JumbleEngine {
      * @return  The list of words matching the searching criteria.
      */
     public Collection<String> searchWords(Character startChar, Character endChar, Integer length) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        boolean validStart = startChar != null && Character.isLetter(startChar);
+        boolean validEnd = endChar != null && Character.isLetter(endChar);
+        boolean validLength = length != null && length >= 1;
+
+        if (!validStart && !validEnd && !validLength) {
+            return Collections.emptyList();
+        }
+
+        char lowerStart = validStart ? Character.toLowerCase(startChar) : 0;
+        char lowerEnd = validEnd ? Character.toLowerCase(endChar) : 0;
+
+        List<String> result = new ArrayList<>();
+        for (String word : wordList) {
+            if (validStart && word.charAt(0) != lowerStart) {
+                continue;
+            }
+            if (validEnd && word.charAt(word.length() - 1) != lowerEnd) {
+                continue;
+            }
+            if (validLength && word.length() != length) {
+                continue;
+            }
+            result.add(word);
+        }
+        return result;
     }
 
     /**
@@ -174,11 +257,60 @@ public class JumbleEngine {
      * @return  The list of sub words constructed from input `word`.
      */
     public Collection<String> generateSubWords(String word, Integer minLength) {
-        /*
-         * Refer to the method's Javadoc (above) and implement accordingly.
-         * Must pass the corresponding unit tests.
-         */
-        throw new UnsupportedOperationException("to be implemented");
+        if (word == null || word.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String trimmed = word.trim();
+        for (char c : trimmed.toCharArray()) {
+            if (!Character.isLetter(c)) {
+                return Collections.emptyList();
+            }
+        }
+
+        if (minLength == null) {
+            minLength = 3;
+        }
+        if (minLength <= 0) {
+            return Collections.emptyList();
+        }
+
+        String lowerWord = trimmed.toLowerCase();
+        if (lowerWord.length() < minLength) {
+            return Collections.emptyList();
+        }
+
+        Map<Character, Integer> freqMap = new HashMap<>();
+        for (char c : lowerWord.toCharArray()) {
+            freqMap.merge(c, 1, Integer::sum);
+        }
+
+        List<String> result = new ArrayList<>();
+        for (String candidate : wordList) {
+            if (candidate.length() < minLength || candidate.length() > lowerWord.length()) {
+                continue;
+            }
+            if (candidate.equals(lowerWord)) {
+                continue;
+            }
+            if (canFormFrom(candidate, freqMap)) {
+                result.add(candidate);
+            }
+        }
+        return result;
+    }
+
+    private boolean canFormFrom(String candidate, Map<Character, Integer> freqMap) {
+        Map<Character, Integer> candidateFreq = new HashMap<>();
+        for (char c : candidate.toCharArray()) {
+            candidateFreq.merge(c, 1, Integer::sum);
+        }
+        for (Map.Entry<Character, Integer> entry : candidateFreq.entrySet()) {
+            Integer available = freqMap.get(entry.getKey());
+            if (available == null || available < entry.getValue()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

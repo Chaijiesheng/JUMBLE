@@ -66,15 +66,8 @@ public class GameWebController {
     @GetMapping("/new")
     public String doGetNew(@ModelAttribute(name = "board") GameBoard board) {
         GameState state = this.jumbleEngine.createGameState(6, 3);
-
-        /*
-         * TODO:
-         * a) Assign the created game `state` (with randomly picked word) into
-         *        game `board` (session attribute)
-         * b) Presentation page to show the information of game board/state
-         * c) Must pass the corresponding unit tests
-         */
-
+        board.setState(state);
+        board.setWord("");
         return "game/board";
     }
 
@@ -96,15 +89,15 @@ public class GameWebController {
 
         scrambleWord(board);
 
-        /*
-         * TODO:
-         * a) Validate the input `word`
-         * b) From the input guessing `word`, implement the game logic
-         * c) Update the game `board` (session attribute)
-         * d) Show the error: "Guessed incorrectly", when word is guessed incorrectly.
-         * e) Presentation page to show the information of game board/state
-         * f) Must pass the corresponding unit tests
-         */
+        String word = board.getWord();
+        if (word != null) {
+            word = word.trim().toLowerCase();
+        }
+        boolean guessed = board.getState().updateGuessWord(word);
+        if (!guessed) {
+            model.addAttribute("message", "Guessed incorrectly");
+        }
+        board.setWord("");
 
         return "game/board";
     }

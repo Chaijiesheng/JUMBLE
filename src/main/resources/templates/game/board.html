@@ -17,6 +17,9 @@
             <p>Click <a th:href="@{/game/new}">here</a> to start game.</p>
         </div>
         <div th:if="${board.state != null}" th:with="guessedWords=${board.state.guessedWords},remaining=${board.state.subWords.size()-guessedWords.size()}" class="col-sm-12 col-xl-12">
+            <div th:if="${message != null}" class="bg-light rounded h-100 p-4">
+                <p class="text-danger"><span th:text="${message}"></span></p>
+            </div>
             <div th:if="${guessedWords.size() == 0}" class="bg-light rounded h-100 p-4">
                 <p>No word guessed yet.</p>
             </div>
